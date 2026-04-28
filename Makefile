@@ -27,7 +27,3 @@ clean:
 deps:
 	go mod tidy
 	go mod download
-
-help:
-	@echo "Commands for $(APP_NAME) :"
-	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
