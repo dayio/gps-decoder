@@ -1,30 +1,34 @@
 package main
 
 import (
-	"encoding/binary"
 	"fmt"
 	"log"
-	"os"
+
+	"github.com/dayio/gps-decoder/internal/source"
 )
 
 func main() {
-	file, err := os.Open("./data/gpssim.bin")
+
+	var signalSource source.IQSource
+	var err error
+
+	signalSource, err = source.ReadFile("./data/gpssim.bin")
 
 	if err != nil {
 		log.Fatalf("Error : %v", err)
 	}
+
+	defer signalSource.Close()
 
 	buffer := make([]int8, 4000)
 
-	err = binary.Read(file, binary.LittleEndian, &buffer)
+	for {
+		err := signalSource.Read(buffer)
 
-	if err != nil {
-		log.Fatalf("Error : %v", err)
-	}
+		if err != nil {
+			break // EOF or SDR error
+		}
 
-	for i := 0; i < 10; i += 2 {
-		signalI := buffer[i]
-		signalQ := buffer[i+1]
-		fmt.Printf("sample %d -> I: %4d, Q: %4d\n", (i/2)+1, signalI, signalQ)
+		fmt.Println("sample", buffer)
 	}
 }
