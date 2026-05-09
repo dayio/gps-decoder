@@ -41,10 +41,10 @@ func main() {
 
 		for prn := 1; prn <= 32; prn++ {
 
-			bestPhase, snr := gps.Acquire(outputComplex, prn, sampleRate)
+			bestPhase, bestDoppler, snr := gps.Acquire(outputComplex, prn, sampleRate)
 
 			if snr > 3.0 {
-				fmt.Printf("Satellite PRN %02d found ! Phase: %4d | SNR: %5.2f\n", prn, bestPhase, snr)
+				fmt.Printf("Satellite PRN %02d found ! Phase: %4d | Doppler: %5.2f | SNR: %5.2f\n", prn, bestPhase, bestDoppler, snr)
 			}
 		}
 	}
