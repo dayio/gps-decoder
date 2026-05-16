@@ -23,7 +23,7 @@ func AcquireFFT(samples []complex128, prn int, sampleRate float64) AcquireResult
 
 	for i := 0; i < len(samples); i++ {
 		// stretch the signal to fit the 1023-bit code
-		chipIdx := int(float64(i)*1023000.0/sampleRate) % 1023
+		chipIdx := int(float64(i)*1023_000.0/sampleRate) % 1023
 		paddedCode[i] = complex(goldCode[chipIdx], 0)
 	}
 

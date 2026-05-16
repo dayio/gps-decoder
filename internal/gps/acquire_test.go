@@ -16,7 +16,7 @@ func TestAcquireFFT(t *testing.T) {
 	// Manual stretch to simulate a 2 MHz signal
 	rawSamples := make([]complex128, 2000)
 	for i := 0; i < len(rawSamples); i++ {
-		chipIdx := int(float64(i-expectedPhase)*1023000.0/sampleRate) % 1023
+		chipIdx := int(float64(i-expectedPhase)*1023_000.0/sampleRate) % 1023
 		if chipIdx < 0 {
 			chipIdx += 1023
 		}
