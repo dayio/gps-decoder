@@ -16,8 +16,12 @@ type DLLState struct {
 
 func UpdatePLL(I, Q float64, state *PLLState) {
 
+	if I == 0 {
+		I = 1e-6 // Safety against division by zero
+	}
+
 	// DISCRIMINATOR : Costas Loop
-	state.PhaseError = math.Atan2(Q, I)
+	state.PhaseError = math.Atan(Q / I)
 
 	// LOOP FILTER & NCO UPDATE
 	state.DopplerFreq += state.PhaseError * state.Gain
