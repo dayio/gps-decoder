@@ -22,8 +22,8 @@ func Acquire(samples []complex128, prn int, sampleRate float64) AcquireResult {
 	bestPhase := 0
 	bestDoppler := 0.0
 
-	// Doppler scanning from -5000Hz to +5000Hz with 500Hz increments
-	for doppler := -5000.0; doppler <= 5000.0; doppler += 500 {
+	// Doppler scanning from -10000Hz to +10000Hz with 500Hz increments
+	for doppler := -10000.0; doppler <= 10000.0; doppler += 500 {
 
 		// We slide the window across the samples
 		for phase := range samples {
