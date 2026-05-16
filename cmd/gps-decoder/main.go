@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"sync"
+	"time"
 
 	"github.com/dayio/gps-decoder/internal/dsp"
 	"github.com/dayio/gps-decoder/internal/gps"
@@ -29,6 +31,8 @@ func main() {
 	inputBuffer := make([]int8, 4000)
 
 	for {
+		now := time.Now()
+
 		err := signalSource.Read(inputBuffer)
 
 		if err != nil {
@@ -39,13 +43,35 @@ func main() {
 
 		sampleRate := 2000000.0
 
+		var wg sync.WaitGroup
+
+		acquireCh := make(chan gps.AcquireResult, 32)
+
 		for prn := 1; prn <= 32; prn++ {
+			wg.Add(1)
 
-			bestPhase, bestDoppler, snr := gps.Acquire(outputComplex, prn, sampleRate)
+			go func(prn int) {
+				defer wg.Done()
+				acquireCh <- gps.Acquire(outputComplex, prn, sampleRate)
+			}(prn)
+		}
 
-			if snr > 3.0 {
-				fmt.Printf("Satellite PRN %02d found ! Phase: %4d | Doppler: %5.2f | SNR: %5.2f\n", prn, bestPhase, bestDoppler, snr)
+		go func() {
+			wg.Wait()
+			close(acquireCh)
+		}()
+
+		for acquireResult := range acquireCh {
+			if acquireResult.SNR > 8.0 {
+				fmt.Printf("Satellite PRN %02d found ! Phase: %4d | Doppler: %5.2f | SNR: %5.2f\n",
+					acquireResult.PRN,
+					acquireResult.BestPhase,
+					acquireResult.BestDoppler,
+					acquireResult.SNR,
+				)
 			}
 		}
+
+		log.Printf("Processing took %v\n", time.Since(now))
 	}
 }

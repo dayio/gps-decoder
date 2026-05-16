@@ -5,7 +5,14 @@ import (
 	"math/cmplx"
 )
 
-func Acquire(samples []complex128, prn int, sampleRate float64) (int, float64, float64) {
+type AcquireResult struct {
+	PRN         int
+	BestPhase   int
+	BestDoppler float64
+	SNR         float64
+}
+
+func Acquire(samples []complex128, prn int, sampleRate float64) AcquireResult {
 	goldCode := GenerateGoldCode(prn)
 
 	maxPower := 0.0 // Peak signak
@@ -57,5 +64,10 @@ func Acquire(samples []complex128, prn int, sampleRate float64) (int, float64, f
 	avgNoise := sumPower / float64(count)
 	snr := maxPower / avgNoise
 
-	return bestPhase, bestDoppler, snr
+	return AcquireResult{
+		PRN:         prn,
+		BestPhase:   bestPhase,
+		BestDoppler: bestDoppler,
+		SNR:         snr,
+	}
 }
