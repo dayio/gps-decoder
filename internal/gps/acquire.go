@@ -1,8 +1,9 @@
 package gps
 
 import (
-	"math"
 	"math/cmplx"
+
+	"github.com/madelynnblue/go-dsp/fft"
 )
 
 type AcquireResult struct {
@@ -12,55 +13,64 @@ type AcquireResult struct {
 	SNR         float64
 }
 
-func Acquire(samples []complex128, prn int, sampleRate float64) AcquireResult {
+// AcquireFFT remplace l'ancienne méthode brute-force par le théorème de la corrélation circulaire
+func AcquireFFT(samples []complex128, prn int, sampleRate float64) AcquireResult {
 	goldCode := GenerateGoldCode(prn)
 
-	maxPower := 0.0 // Peak signak
-	sumPower := 0.0 // Used to calculate the SNR
-	count := 0      // Number of "samples"
+	N := 2048
 
+	paddedCode := make([]complex128, N)
+
+	for i := 0; i < len(samples); i++ {
+		// stretch the signal to fit the 1023-bit code
+		chipIdx := int(float64(i)*1023000.0/sampleRate) % 1023
+		paddedCode[i] = complex(goldCode[chipIdx], 0)
+	}
+
+	codeFFT := fft.FFT(paddedCode)
+
+	for i := range codeFFT {
+		codeFFT[i] = cmplx.Conj(codeFFT[i])
+	}
+
+	maxPower := 0.0
+	sumPower := 0.0
+	count := 0
 	bestPhase := 0
 	bestDoppler := 0.0
 
-	// Doppler scanning from -10000Hz to +10000Hz with 500Hz increments
+	// Doppler scanning
 	for doppler := -10000.0; doppler <= 10000.0; doppler += 500 {
 
-		// We slide the window across the samples
-		for phase := range samples {
+		// Rotation and padding
+		rotatedSamples := ApplyDoppler(samples, doppler, sampleRate, N)
 
-			var correlation complex128
+		// Go to frequency domain
+		signalFFT := fft.FFT(rotatedSamples)
 
-			// We check our 1023-bit key against this specific window
-			for i := range 1023 {
+		// Circular correlation (Multiplication)
+		for i := range signalFFT {
+			signalFFT[i] = signalFFT[i] * codeFFT[i]
+		}
 
-				// Calculate the signal index with the offset (modulo to wrap around)
-				// This also maps the 1023 chips to the 2000 samples
-				sigIdx := (phase + int(float64(i)*(sampleRate/1023000.0))) % len(samples)
+		// Back to temporal domain
+		correlationScores := fft.IFFT(signalFFT)
 
-				// Phase rotation to compensate for Doppler
-				angle := 2 * math.Pi * doppler * (float64(i) / sampleRate)
-				phasor := cmplx.Exp(complex(0, -angle))
+		// Peak correlation analysis without padding values
+		for i := 0; i < len(samples); i++ {
+			power := cmplx.Abs(correlationScores[i])
 
-				// Simple correlation, Signal * Code * Doppler compensation
-				correlation += samples[sigIdx] * complex(goldCode[i], 0) * phasor
-			}
-
-			power := cmplx.Abs(correlation)
-
-			// We add this power to the total noise baseline
 			sumPower += power
 			count++
 
-			// Check if we find a new peak
 			if power > maxPower {
 				maxPower = power
-				bestPhase = phase
+				bestPhase = i
 				bestDoppler = doppler
 			}
 		}
 	}
 
-	// Calculate the average noise and the SNR
 	avgNoise := sumPower / float64(count)
 	snr := maxPower / avgNoise
 

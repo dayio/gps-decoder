@@ -52,7 +52,7 @@ func main() {
 
 			go func(prn int) {
 				defer wg.Done()
-				acquireCh <- gps.Acquire(outputComplex, prn, sampleRate)
+				acquireCh <- gps.AcquireFFT(outputComplex, prn, sampleRate)
 			}(prn)
 		}
 
