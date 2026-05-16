@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"sync"
-	"time"
 
 	"github.com/dayio/gps-decoder/internal/dsp"
 	"github.com/dayio/gps-decoder/internal/gps"
@@ -28,11 +26,23 @@ func main() {
 		}
 	}()
 
-	inputBuffer := make([]int8, 4000)
+	sampleRate := 2000000.0
+	chunkSize := int(sampleRate / 1000.0) // 2000 samples = 1ms
+
+	// Create channels for our 32 satellites
+	channels := make([]chan []complex128, 32)
+
+	for prn := 1; prn <= 32; prn++ {
+		// Define a buffer of 10 chunks
+		channels[prn-1] = make(chan []complex128, 10)
+
+		// Start the state machine goroutine for this PRN
+		go gps.RunChannel(prn, channels[prn-1], sampleRate)
+	}
+
+	inputBuffer := make([]int8, chunkSize*2) // I and Q bytes
 
 	for {
-		now := time.Now()
-
 		err := signalSource.Read(inputBuffer)
 
 		if err != nil {
@@ -41,37 +51,15 @@ func main() {
 
 		outputComplex := dsp.ToComplex(inputBuffer)
 
-		sampleRate := 2000000.0
-
-		var wg sync.WaitGroup
-
-		acquireCh := make(chan gps.AcquireResult, 32)
-
-		for prn := 1; prn <= 32; prn++ {
-			wg.Add(1)
-
-			go func(prn int) {
-				defer wg.Done()
-				acquireCh <- gps.AcquireFFT(outputComplex, prn, sampleRate)
-			}(prn)
+		for i := 0; i < 32; i++ {
+			channels[i] <- outputComplex
 		}
 
-		go func() {
-			wg.Wait()
-			close(acquireCh)
-		}()
+		fmt.Print(".")
+	}
 
-		for acquireResult := range acquireCh {
-			if acquireResult.SNR > 8.0 {
-				fmt.Printf("Satellite PRN %02d found ! Phase: %4d | Doppler: %5.2f | SNR: %5.2f\n",
-					acquireResult.PRN,
-					acquireResult.BestPhase,
-					acquireResult.BestDoppler,
-					acquireResult.SNR,
-				)
-			}
-		}
-
-		log.Printf("Processing took %v\n", time.Since(now))
+	// Close channels to let goroutines exit cleanly
+	for i := 0; i < 32; i++ {
+		close(channels[i])
 	}
 }
