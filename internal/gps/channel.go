@@ -15,7 +15,18 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 	state := StateAcquiring
 	var trackState TrackingState
 
+	navState := NavDataState{}
+
+	// Sleep penality
+	skipCounter := 0
+
 	for chunk := range sampleStream {
+
+		if skipCounter > 0 {
+			skipCounter--
+			continue
+		}
+
 		switch state {
 
 		case StateAcquiring:
@@ -34,10 +45,12 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 					},
 					DLL: DLLState{
 						CodePhase: float64(acquireResult.BestPhase),
-						Gain:      0.05,
+						Gain:      0.01,
 					},
 				}
 				state = StateTracking
+			} else {
+				skipCounter = 100 // Allow some time to recover from the noise
 			}
 
 		case StateTracking:
@@ -47,12 +60,14 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 			if trackResult.PromptPower < 50.0 {
 				fmt.Printf("\n[PRN %02d] Tracking lost - Fallback to ACQUISITION\n", prn)
 				state = StateAcquiring
+
+				skipCounter = 500 // Sleep for 500ms let the satellite signal recover
 				continue
 			}
 
 			// Data Extraction
 			if trackResult.IsLocked {
-				// TODO: We will build this in the next article !
+				ProcessNavigationData(prn, trackResult.I, &navState)
 			}
 		}
 	}
