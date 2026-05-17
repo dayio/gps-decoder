@@ -1,9 +1,5 @@
 package gps
 
-import (
-	"fmt"
-)
-
 type ChannelState int
 
 const (
@@ -33,8 +29,8 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 			acquireResult := AcquireFFT(chunk, prn, sampleRate)
 
 			// Threshold to switch to tracking
-			if acquireResult.SNR > 6.0 {
-				fmt.Printf("\n[PRN %02d] Signal acquired - SNR: %.2f. Switching to TRACKING\n", prn, acquireResult.SNR)
+			if acquireResult.SNR > 8.0 {
+				// fmt.Printf("[PRN %02d] Signal acquired - SNR: %.2f. Switching to TRACKING\n", prn, acquireResult.SNR)
 
 				trackState = TrackingState{
 					PRN:          prn,
@@ -57,8 +53,8 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 			trackResult := TrackChunk(chunk, &trackState, sampleRate)
 
 			// Loss of Lock detection
-			if trackResult.PromptPower < 50.0 {
-				fmt.Printf("\n[PRN %02d] Tracking lost - Fallback to ACQUISITION\n", prn)
+			if trackResult.PromptPower < 30.0 {
+				// fmt.Printf("[PRN %02d] Tracking lost - Fallback to ACQUISITION\n", prn)
 				state = StateAcquiring
 
 				skipCounter = 500 // Sleep for 500ms let the satellite signal recover

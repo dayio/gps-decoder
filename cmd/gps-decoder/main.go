@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/dayio/gps-decoder/internal/dsp"
@@ -54,8 +53,6 @@ func main() {
 		for i := 0; i < 32; i++ {
 			channels[i] <- outputComplex
 		}
-
-		fmt.Print(".")
 	}
 
 	// Close channels to let goroutines exit cleanly
