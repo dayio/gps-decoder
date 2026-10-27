@@ -14,34 +14,34 @@ func GenerateGoldCode(prn int) []float64 {
 	}
 
 	code := make([]float64, 1023)
-	p := taps[prn]
+	prnTaps := taps[prn]
 
-	g1 := make([]int, 10)
-	g2 := make([]int, 10)
+	register1 := make([]int, 10)
+	register2 := make([]int, 10)
 
 	for i := range 10 {
-		g1[i] = 1
-		g2[i] = 1
+		register1[i] = 1
+		register2[i] = 1
 	}
 
 	for i := range 1023 {
-		outG1 := g1[9]
-		outG2 := g2[p[0]-1] ^ g2[p[1]-1]
+		outputRegister1 := register1[9]
+		outputRegister2 := register2[prnTaps[0]-1] ^ register2[prnTaps[1]-1]
 
-		if outG1^outG2 == 0 {
+		if outputRegister1^outputRegister2 == 0 {
 			code[i] = 1.0
 		} else {
 			code[i] = -1.0
 		}
 
-		f1 := g1[2] ^ g1[9]
-		f2 := g2[1] ^ g2[2] ^ g2[5] ^ g2[7] ^ g2[8] ^ g2[9]
+		polynomial1 := register1[2] ^ register1[9]
+		polynomial2 := register2[1] ^ register2[2] ^ register2[5] ^ register2[7] ^ register2[8] ^ register2[9]
 
-		copy(g1[1:], g1[:9])
-		copy(g2[1:], g2[:9])
+		copy(register1[1:], register1[:9])
+		copy(register2[1:], register2[:9])
 
-		g1[0] = f1
-		g2[0] = f2
+		register1[0] = polynomial1
+		register2[0] = polynomial2
 	}
 
 	return code
