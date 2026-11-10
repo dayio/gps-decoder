@@ -29,12 +29,12 @@ func ProcessNavigationData(prn int, I float64, state *NavDataState) {
 
 		// Check for Preamble
 		if state.ShiftRegister == 0x8B { // 0001011 (0x8B
-			fmt.Printf("\n[PRN %02d] Preamble found (Normal) \n", prn)
+			fmt.Printf("[PRN %02d] Preamble found (Normal) \n", prn)
 		} else if state.ShiftRegister == 0x74 { // 01110100 (0x74)
-			fmt.Printf("\n[PRN %02d] Preamble found (Inverted) \n", prn)
+			fmt.Printf("[PRN %02d] Preamble found (Inverted) \n", prn)
 		}
 
-		fmt.Printf("%d", bit)
+		// fmt.Printf("%d", bit)
 
 		state.BufferCount = 0
 		state.Accumulator = 0.0
