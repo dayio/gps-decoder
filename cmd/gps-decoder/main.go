@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"sync"
 
 	"github.com/dayio/gps-decoder/internal/dsp"
 	"github.com/dayio/gps-decoder/internal/gps"
@@ -30,16 +32,20 @@ func main() {
 
 	// Create channels for our 32 satellites
 	channels := make([]chan []complex128, 32)
+	var wg sync.WaitGroup
 
 	for prn := 1; prn <= 32; prn++ {
-		// Define a buffer of 10 chunks
-		channels[prn-1] = make(chan []complex128, 10)
+		channels[prn-1] = make(chan []complex128, 1000)
+		wg.Add(1)
 
-		// Start the state machine goroutine for this PRN
-		go gps.RunChannel(prn, channels[prn-1], sampleRate)
+		go func(p int, ch chan []complex128) {
+			defer wg.Done()
+			gps.RunChannel(p, ch, sampleRate)
+		}(prn, channels[prn-1])
 	}
 
 	inputBuffer := make([]int8, chunkSize*2) // I and Q bytes
+	processedMs := 0
 
 	for {
 		err := signalSource.Read(inputBuffer)
@@ -48,15 +54,23 @@ func main() {
 			break // EOF or SDR error
 		}
 
+		processedMs++
+
+		if processedMs%5000 == 0 {
+			fmt.Printf("\n--- PROGRESS: %.1f seconds processed ---\n", float64(processedMs)/1000.0)
+		}
+
 		outputComplex := dsp.ToComplex(inputBuffer)
 
-		for i := 0; i < 32; i++ {
+		for i := range 32 {
 			channels[i] <- outputComplex
 		}
 	}
 
 	// Close channels to let goroutines exit cleanly
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		close(channels[i])
 	}
+
+	wg.Wait()
 }
