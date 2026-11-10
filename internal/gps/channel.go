@@ -12,6 +12,8 @@ const (
 	StateTracking
 )
 
+var loggingEnabled bool = false
+
 // acquireSemaphore limits concurrent FFT acquisitions to prevent CPU thrashing
 var acquireSemaphore = make(chan struct{}, 4)
 
@@ -42,7 +44,10 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 
 				// Threshold to switch to tracking
 				if acquireResult.SNR > 8.0 {
-					fmt.Printf("[PRN %02d] Signal acquired - SNR: %.2f. Switching to TRACKING\n", prn, acquireResult.SNR)
+
+					if loggingEnabled {
+						fmt.Printf("[PRN %02d] Signal acquired - SNR: %.2f. Switching to TRACKING\n", prn, acquireResult.SNR)
+					}
 
 					initCodePhase := math.Mod(-float64(acquireResult.BestPhase)*1023_000.0/sampleRate, 1023.0)
 
@@ -78,7 +83,9 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 			if trackResult.PromptPower < 20.0 {
 				lossOfLockCount++
 				if lossOfLockCount > 100 {
-					fmt.Printf("[PRN %02d] Tracking lost - Fallback to ACQUISITION\n", prn)
+					if loggingEnabled {
+						fmt.Printf("[PRN %02d] Tracking lost - Fallback to ACQUISITION\n", prn)
+					}
 					state = StateAcquiring
 					lossOfLockCount = 0
 					skipCounter = 300 // Sleep for 300ms let the satellite signal recover
