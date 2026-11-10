@@ -1,6 +1,9 @@
 package gps
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 type ChannelState int
 
@@ -40,6 +43,12 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 				if acquireResult.SNR > 8.0 {
 					fmt.Printf("[PRN %02d] Signal acquired - SNR: %.2f. Switching to TRACKING\n", prn, acquireResult.SNR)
 
+					initCodePhase := math.Mod(-float64(acquireResult.BestPhase)*1023_000.0/sampleRate, 1023.0)
+
+					if initCodePhase < 0 {
+						initCodePhase += 1023.0
+					}
+
 					trackState = TrackingState{
 						PRN:          prn,
 						CarrierPhase: 0.0,
@@ -48,7 +57,7 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 							Gain:        0.25,
 						},
 						DLL: DLLState{
-							CodePhase: float64(acquireResult.BestPhase),
+							CodePhase: initCodePhase,
 							Gain:      0.01,
 						},
 					}
