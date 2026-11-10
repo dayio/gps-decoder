@@ -1,11 +1,16 @@
 package gps
 
+import "fmt"
+
 type ChannelState int
 
 const (
 	StateAcquiring ChannelState = iota
 	StateTracking
 )
+
+// acquireSemaphore limits concurrent FFT acquisitions to prevent CPU thrashing
+var acquireSemaphore = make(chan struct{}, 4)
 
 func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 	state := StateAcquiring
@@ -26,27 +31,33 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 		switch state {
 
 		case StateAcquiring:
-			acquireResult := AcquireFFT(chunk, prn, sampleRate)
+			select {
+			case acquireSemaphore <- struct{}{}:
+				acquireResult := AcquireFFT(chunk, prn, sampleRate)
+				<-acquireSemaphore
 
-			// Threshold to switch to tracking
-			if acquireResult.SNR > 8.0 {
-				// fmt.Printf("[PRN %02d] Signal acquired - SNR: %.2f. Switching to TRACKING\n", prn, acquireResult.SNR)
+				// Threshold to switch to tracking
+				if acquireResult.SNR > 8.0 {
+					fmt.Printf("[PRN %02d] Signal acquired - SNR: %.2f. Switching to TRACKING\n", prn, acquireResult.SNR)
 
-				trackState = TrackingState{
-					PRN:          prn,
-					CarrierPhase: 0.0,
-					PLL: PLLState{
-						DopplerFreq: acquireResult.BestDoppler,
-						Gain:        0.25,
-					},
-					DLL: DLLState{
-						CodePhase: float64(acquireResult.BestPhase),
-						Gain:      0.01,
-					},
+					trackState = TrackingState{
+						PRN:          prn,
+						CarrierPhase: 0.0,
+						PLL: PLLState{
+							DopplerFreq: acquireResult.BestDoppler,
+							Gain:        0.25,
+						},
+						DLL: DLLState{
+							CodePhase: float64(acquireResult.BestPhase),
+							Gain:      0.01,
+						},
+					}
+					state = StateTracking
+				} else {
+					skipCounter = 100 // Allow some time to recover from the noise
 				}
-				state = StateTracking
-			} else {
-				skipCounter = 100 // Allow some time to recover from the noise
+			default:
+				skipCounter = 20 // Pool is busy, wait for the next cycle
 			}
 
 		case StateTracking:
