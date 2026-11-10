@@ -23,6 +23,7 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 
 	// Sleep penality
 	skipCounter := 0
+	lossOfLockCount := 0
 
 	for chunk := range sampleStream {
 
@@ -62,6 +63,7 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 						},
 					}
 					state = StateTracking
+					lossOfLockCount = 0
 				} else {
 					skipCounter = 100 // Allow some time to recover from the noise
 				}
@@ -73,12 +75,17 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 			trackResult := TrackChunk(chunk, &trackState, sampleRate)
 
 			// Loss of Lock detection
-			if trackResult.PromptPower < 30.0 {
-				// fmt.Printf("[PRN %02d] Tracking lost - Fallback to ACQUISITION\n", prn)
-				state = StateAcquiring
-
-				skipCounter = 500 // Sleep for 500ms let the satellite signal recover
-				continue
+			if trackResult.PromptPower < 20.0 {
+				lossOfLockCount++
+				if lossOfLockCount > 100 {
+					fmt.Printf("[PRN %02d] Tracking lost - Fallback to ACQUISITION\n", prn)
+					state = StateAcquiring
+					lossOfLockCount = 0
+					skipCounter = 300 // Sleep for 300ms let the satellite signal recover
+					continue
+				}
+			} else {
+				lossOfLockCount = 0
 			}
 
 			// Data Extraction
