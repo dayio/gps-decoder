@@ -31,7 +31,7 @@ func TrackChunk(chunk []complex128, state *TrackingState, sampleRate float64) Tr
 	// DLL UPDATE (Fix Code Delay)
 	earlyPower := cmplx.Abs(early)
 	latePower := cmplx.Abs(late)
-	UpdateDLL(earlyPower, latePower, &state.DLL)
+	UpdateDLL(earlyPower, latePower, state.PLL.DopplerFreq, &state.DLL)
 
 	// PLL UPDATE (Fix Doppler Frequency)
 	I := real(prompt)
@@ -39,9 +39,13 @@ func TrackChunk(chunk []complex128, state *TrackingState, sampleRate float64) Tr
 	UpdatePLL(I, Q, &state.PLL)
 
 	// CARRIER PHASE ADVANCE
-	// We move the carrier phase forward by 1ms for the next chunk
-	state.CarrierPhase += 2.0 * math.Pi * state.PLL.DopplerFreq * 0.001
-	state.CarrierPhase = math.Mod(state.CarrierPhase, 2*math.Pi) // Keep it within 0 to 2PI as the phase rotates
+	// Move carrier phase forward by 1ms + apply proportional phase correction from PLL
+	gainP := state.PLL.GainP
+	if gainP == 0 {
+		gainP = 0.25
+	}
+	state.CarrierPhase += 2.0*math.Pi*state.PLL.DopplerFreq*0.001 + state.PLL.PhaseError*gainP
+	state.CarrierPhase = math.Mod(state.CarrierPhase, 2*math.Pi) // Keep within 0 to 2PI as phase rotates
 
 	// RETURN METRICS
 	// If the phase error is small enough, the PLL is considered as "locked"

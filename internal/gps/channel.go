@@ -60,7 +60,8 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 						CarrierPhase: 0.0,
 						PLL: PLLState{
 							DopplerFreq: acquireResult.BestDoppler,
-							Gain:        0.25,
+							GainP:       0.25,
+							GainI:       2.0,
 						},
 						DLL: DLLState{
 							CodePhase: initCodePhase,

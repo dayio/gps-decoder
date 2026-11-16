@@ -8,7 +8,8 @@ import (
 func TestUpdatePLL(t *testing.T) {
 	state := PLLState{
 		DopplerFreq: 1500.0,
-		Gain:        0.1,
+		GainP:       0.25,
+		GainI:       2.0,
 	}
 
 	// Simulate phase error (energy leaking into Q axis)
@@ -27,22 +28,33 @@ func TestUpdatePLL(t *testing.T) {
 }
 
 func TestUpdateDLL(t *testing.T) {
-	state := DLLState{
-		CodePhase: 500.0,
-		Gain:      0.05,
+
+	state := TrackingState{
+		PLL: PLLState{
+			DopplerFreq: 1500.0,
+			GainP:       0.25,
+			GainI:       2.0,
+		},
+		DLL: DLLState{
+			CodePhase: 500.0,
+			Gain:      0.05,
+		},
 	}
 
-	// Early > Late indicates local code is lagging behind the received signal
+	// Early > Late indicates correlation peak is before prompt (local code is ahead, so phase must decrease)
 	earlyPower := 120.0
 	latePower := 80.0
 
-	UpdateDLL(earlyPower, latePower, &state)
+	UpdateDLL(earlyPower, latePower, state.PLL.DopplerFreq, &state.DLL)
 
-	// Math check: Error = (120 - 80) / 200 = 0.2
-	// Correction = 0.2 * 0.05 = 0.01
-	expectedPhase := 500.01
+	// Math check:
+	// Error = (120 - 80) / 200 = 0.2
+	// DLL correction = - 0.2 * 0.05 = -0.01
+	// Carrier Doppler aiding = (1500 / 1540) * 0.001 ≈ 0.000974026
+	codeDoppler := (1500.0 / 1540.0) * 0.001
+	expectedPhase := 500.0 + codeDoppler - 0.01
 
-	if math.Abs(state.CodePhase-expectedPhase) > 0.0001 {
-		t.Errorf("DLL correction failed. Expected: %f, Got: %f", expectedPhase, state.CodePhase)
+	if math.Abs(state.DLL.CodePhase-expectedPhase) > 0.0001 {
+		t.Errorf("DLL correction failed. Expected: %f, Got: %f", expectedPhase, state.DLL.CodePhase)
 	}
 }
