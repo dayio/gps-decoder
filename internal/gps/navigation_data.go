@@ -9,9 +9,6 @@ type NavDataState struct {
 }
 
 func ProcessNavigationData(prn int, I float64, state *NavDataState) {
-	if prn != 15 {
-		return
-	}
 
 	state.Accumulator += I
 	state.BufferCount++
