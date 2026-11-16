@@ -1,6 +1,10 @@
 package gps
 
-import "fmt"
+import (
+	"time"
+
+	"github.com/dayio/gps-decoder/internal/events"
+)
 
 type NavDataState struct {
 	BufferCount   int     // Counts up to 20ms
@@ -8,7 +12,7 @@ type NavDataState struct {
 	ShiftRegister uint8   // 8 bit shift register (to find the preamble)
 }
 
-func ProcessNavigationData(prn int, I float64, state *NavDataState) {
+func ProcessNavigationData(prn int, I float64, state *NavDataState, bus *events.Bus) {
 
 	state.Accumulator += I
 	state.BufferCount++
@@ -24,11 +28,22 @@ func ProcessNavigationData(prn int, I float64, state *NavDataState) {
 		// Push the bit into shift register
 		state.ShiftRegister = (state.ShiftRegister << 1) | bit
 
-		// Check for Preamble
-		if state.ShiftRegister == 0x8B { // 0001011 (0x8B
-			fmt.Printf("[PRN %02d] Preamble found (Normal) \n", prn)
-		} else if state.ShiftRegister == 0x74 { // 01110100 (0x74)
-			fmt.Printf("[PRN %02d] Preamble found (Inverted) \n", prn)
+		if state.ShiftRegister == 0x8B {
+			bus.Publish(events.Event{
+				Timestamp: time.Now(),
+				PRN:       prn,
+				Type:      events.EventPreambleFound,
+				Message:   "Normal preamble detected",
+				Data:      events.PreambleNormal,
+			})
+		} else if state.ShiftRegister == 0x74 {
+			bus.Publish(events.Event{
+				Timestamp: time.Now(),
+				PRN:       prn,
+				Type:      events.EventPreambleFound,
+				Message:   "Inverted preamble detected (180° phase flip)",
+				Data:      events.PreambleInverted,
+			})
 		}
 
 		// fmt.Printf("%d", bit)

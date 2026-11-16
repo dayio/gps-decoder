@@ -6,6 +6,8 @@ import (
 	"sync"
 
 	"github.com/dayio/gps-decoder/internal/dsp"
+	"github.com/dayio/gps-decoder/internal/events"
+	"github.com/dayio/gps-decoder/internal/output"
 	"github.com/dayio/gps-decoder/internal/signal"
 	"github.com/dayio/gps-decoder/internal/source"
 )
@@ -30,6 +32,12 @@ func main() {
 	sampleRate := 2000000.0
 	chunkSize := int(sampleRate / 1000.0) // 2000 samples = 1ms
 
+	// event bus
+	bus := events.NewBus(1000)
+
+	eventsCh := bus.Subscribe()
+	go output.RunConsoleSink(eventsCh)
+
 	// Create channels for our 32 satellites
 	channels := make([]chan []complex128, 32)
 	var wg sync.WaitGroup
@@ -40,7 +48,7 @@ func main() {
 
 		go func(p int, ch chan []complex128) {
 			defer wg.Done()
-			signal.RunChannel(p, ch, sampleRate)
+			signal.RunChannel(p, ch, sampleRate, bus)
 		}(prn, channels[prn-1])
 	}
 
