@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/dayio/gps-decoder/internal/dsp"
-	"github.com/dayio/gps-decoder/internal/gps"
+	"github.com/dayio/gps-decoder/internal/signal"
 	"github.com/dayio/gps-decoder/internal/source"
 )
 
@@ -40,7 +40,7 @@ func main() {
 
 		go func(p int, ch chan []complex128) {
 			defer wg.Done()
-			gps.RunChannel(p, ch, sampleRate)
+			signal.RunChannel(p, ch, sampleRate)
 		}(prn, channels[prn-1])
 	}
 

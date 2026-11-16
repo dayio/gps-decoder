@@ -1,8 +1,10 @@
-package gps
+package signal
 
 import (
 	"fmt"
 	"math"
+
+	"github.com/dayio/gps-decoder/internal/gps"
 )
 
 type ChannelState int
@@ -21,7 +23,7 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 	state := StateAcquiring
 	var trackState TrackingState
 
-	navState := NavDataState{}
+	navState := gps.NavDataState{}
 
 	// Sleep penality
 	skipCounter := 0
@@ -98,7 +100,7 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64) {
 
 			// Data Extraction
 			if trackResult.IsLocked {
-				ProcessNavigationData(prn, trackResult.I, &navState)
+				gps.ProcessNavigationData(prn, trackResult.I, &navState)
 			}
 		}
 	}

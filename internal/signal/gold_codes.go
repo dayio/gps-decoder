@@ -1,4 +1,4 @@
-package gps
+package signal
 
 func GenerateGoldCode(prn int) []float64 {
 
