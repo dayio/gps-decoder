@@ -12,7 +12,7 @@ type NavDataState struct {
 	ShiftRegister uint8   // 8 bit shift register (to find the preamble)
 }
 
-func ProcessNavigationData(prn int, I float64, state *NavDataState, bus *events.Bus) {
+func ProcessNavigationData(prn int, I float64, state *NavDataState, bus *events.Bus, store *NavStore) {
 
 	state.Accumulator += I
 	state.BufferCount++
