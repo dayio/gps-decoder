@@ -107,9 +107,7 @@ func RunChannel(prn int, sampleStream <-chan []complex128, sampleRate float64, b
 			}
 
 			// Data Extraction
-			if trackResult.IsLocked {
-				gps.ProcessNavigationData(prn, trackResult.I, &navState, bus, store)
-			}
+			gps.ProcessNavigationData(prn, trackResult.I, &navState, bus, store)
 
 			bus.Publish(events.Event{
 				Timestamp: time.Now(),
